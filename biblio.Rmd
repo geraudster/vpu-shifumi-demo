@@ -1,0 +1,7 @@
+# Liens
+
+* [First Wave of Spiking Neural Network Hardware Hits](https://www.nextplatform.com/2018/09/11/first-wave-of-spiking-neural-network-hardware-hits/)
+* [Intel® Movidius™ Neural Compute Stick](https://software.intel.com/en-us/neural-compute-stick)
+* [NCSDK back soon (git repo)](https://github.com/movidius/ncsdk)
+
+
