@@ -1,8 +1,15 @@
+---
+title: "An example Knitr/R Markdown document"
+author: "Géraud Dugé de Bernonville"
+date: "29 septembre 2018"
+output: html_document
+---
+
 # Installation de Keras
 
 Installation du package:
 
-```{r}
+```{r,results='hide',message=FALSE,cache=TRUE}
 devtools::install_github("rstudio/keras")
 library(keras)
 use_python("/usr/bin/python3")
@@ -11,10 +18,16 @@ install_keras()
 ```
 
 Installation de tensorflow:
-```{r}
+```{r,results='hide',message=FALSE,cache=TRUE}
 library(reticulate)
 py_install('pydot', envname = 'r-tensorflow')
 ```
+
+```{r}
+library(keras)
+library(reticulate)
+```
+
 # Définition des constantes
 
 ```{r}
@@ -114,8 +127,7 @@ train_generator <- flow_images_from_directory(
     target_size = c(img_height, img_width),
     batch_size = batch_size, 
     class_mode = "categorical",
-    save_to_dir = 'generated',
-    format = 'rgb')
+    save_to_dir = 'generated')
 
 validation_generator <- flow_images_from_directory(
     validation_data_dir,
@@ -147,4 +159,9 @@ plot(history)
 
 ```{r}
 export_savedmodel(model, 'output/model_weights')
+```
+# Freeze du modèle
+
+```{r}
+
 ```
