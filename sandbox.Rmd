@@ -142,7 +142,7 @@ validation_generator <- flow_images_from_directory(
 ```{r}
 history <- model %>% fit_generator(train_generator,
                                    validation_data = validation_generator,
-                                   steps_per_epoch = 20,
+                                   steps_per_epoch = 5,
                                    validation_steps = 10,
                                    epochs = 5)
 
@@ -158,10 +158,32 @@ plot(history)
 # Sauvegarde du modèle
 
 ```{r}
-export_savedmodel(model, 'output/model_weights')
+#export_savedmodel(model, 'output/model_weights')
+save_model_hdf5(model, 'output/model_hdf5')
 ```
 # Freeze du modèle
 
 ```{r}
+k_set_learning_phase(0)
 
+library(tensorflow)
+model$input_names
+model$output_names
+
+sess = k_get_session()
+
+                                        # rename output node
+tf$identity(model$output[1], name='output0')
+model$output_names
+
+optimized_graph <- sess$graph$as_graph_def()
+optimized_graph <- tf$graph_util$convert_variables_to_constants(sess, optimized_graph, list('output0'))
+optimized_graph <- tf$graph_util$remove_training_nodes(optimized_graph)
+tf$train$write_graph(optimized_graph, 'frozen-orig', 'retrained.pb', as_text=FALSE)
+```
+
+# Compilation vers le NCS
+
+```{sh}
+docker run -v /home/geraud/projects/keras_transfer_learning/frozen/alpha_retrained.pb:/model.pb -it geraudster/ncs-container mvNCCompile /model.pb -in 'input_1' -on 'output0'
 ```
