@@ -18,6 +18,7 @@ install_keras()
 ```
 
 Installation de tensorflow:
+
 ```{r,results='hide',message=FALSE,cache=TRUE}
 library(reticulate)
 py_install('pydot', envname = 'r-tensorflow')
@@ -46,9 +47,9 @@ epochs <-  50
 Chargement du modèle MobileNet
 
 ```{r}
-base_model <- application_vgg16(weight = 'imagenet',
-                                    include_top = FALSE,
-                                    input_shape = c(img_width, img_height, 3))
+base_model <- application_inception_v3(weight = 'imagenet',
+                                       include_top = FALSE,
+                                       input_shape = c(img_width, img_height, 3))
 
 ```
 
@@ -62,7 +63,8 @@ predictions <- base_model$output %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 1024, activation = 'relu') %>%
-    layer_dense(units = 5, activation = 'softmax')
+    layer_dense(units = 5) %>%
+    layer_activation(activation = 'softmax')
 
 ```
 
@@ -151,7 +153,6 @@ history <- model %>% fit_generator(train_generator,
 On peut surveiller la courbe d'apprentissage :
 
 ```{r}
-
 plot(history)
 ```
 
@@ -161,29 +162,38 @@ plot(history)
 #export_savedmodel(model, 'output/model_weights')
 save_model_hdf5(model, 'output/model_hdf5')
 ```
+
+```{r}
+export_savedmodel(model, 'output/export/')
+```
+
 # Freeze du modèle
 
 ```{r}
+library(keras)
+library(tensorflow)
+
+k_clear_session()
+model <- load_model_hdf5('output/model_hdf5')
 k_set_learning_phase(0)
 
 library(tensorflow)
 model$input_names
 model$output_names
+model$output[1]$name
 
-sess = k_get_session()
-
-                                        # rename output node
-tf$identity(model$output[1], name='output0')
-model$output_names
+sess <- k_get_session()
 
 optimized_graph <- sess$graph$as_graph_def()
-optimized_graph <- tf$graph_util$convert_variables_to_constants(sess, optimized_graph, list('output0'))
-optimized_graph <- tf$graph_util$remove_training_nodes(optimized_graph)
+#optimized_graph <- tf$graph_util$remove_training_nodes(optimized_graph)
+optimized_graph <- tf$graph_util$convert_variables_to_constants(sess, optimized_graph, list('strided_slice'))
+
 tf$train$write_graph(optimized_graph, 'frozen-orig', 'retrained.pb', as_text=FALSE)
+tf$train$write_graph(optimized_graph, 'frozen-orig', 'retrained.txt', as_text=TRUE)
 ```
 
 # Compilation vers le NCS
 
-```{sh}
-docker run -v /home/geraud/projects/keras_transfer_learning/frozen/alpha_retrained.pb:/model.pb -it geraudster/ncs-container mvNCCompile /model.pb -in 'input_1' -on 'output0'
+```{bash}
+docker run -v $PWD/frozen-orig/retrained.pb:/model.pb -it geraudster/ncs-container mvNCCompile /model.pb -in 'input_1' -on 'activation_1/Softmax'
 ```
