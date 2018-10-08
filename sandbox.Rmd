@@ -1,3 +1,4 @@
+-*- mode: poly-markdown+r -*-
 ---
 title: "An example Knitr/R Markdown document"
 author: "Géraud Dugé de Bernonville"
@@ -10,23 +11,33 @@ output: html_document
 Installation du package:
 
 ```{r,results='hide',message=FALSE,cache=TRUE}
+devtools::install_github("rstudio/tensorflow")
 devtools::install_github("rstudio/keras")
-library(keras)
-use_python("/usr/bin/python3")
+##install_keras(method = 'virtualenv', tensorflow = '1.7.0')
+```
 
-install_keras()
+```{bash}
+virtualenv -p python3 ~/.virtualenvs/r-tensorflow-py3
+```
+
+```{r,results='hide',message=FALSE,cache=TRUE}
+library(reticulate)
+##virtualenv_create('r-tensorflow-py3') ## should be created manually
+virtualenv_install('r-tensorflow-py3', 'tensorflow==1.7.0')
+virtualenv_install('r-tensorflow-py3', 'keras')
+
 ```
 
 Installation de tensorflow:
 
 ```{r,results='hide',message=FALSE,cache=TRUE}
-library(reticulate)
-py_install('pydot', envname = 'r-tensorflow')
+py_install('pydot', envname = 'r-tensorflow-py3')
 ```
 
 ```{r}
 library(keras)
 library(reticulate)
+use_virtualenv('~/.virtualenvs/r-tensorflow-py3', required = TRUE)
 ```
 
 # Définition des constantes
@@ -40,6 +51,11 @@ nb_train_samples <-  4125
 nb_validation_samples <-  466 
 batch_size <-  50
 epochs <-  50
+model_output_dir <- './target/models/'
+augmented_data <- './target/generated/'
+
+if (!dir.exists(model_output_dir)) dir.create(model_output_dir, recursive = TRUE)
+if (!dir.exists(augmented_data)) dir.create(augmented_data, recursive = TRUE)
 ```
 
 # Keras training
@@ -47,9 +63,9 @@ epochs <-  50
 Chargement du modèle MobileNet
 
 ```{r}
-base_model <- application_inception_v3(weight = 'imagenet',
-                                       include_top = FALSE,
-                                       input_shape = c(img_width, img_height, 3))
+base_model <- application_mobilenet(weight = 'imagenet',
+                                    include_top = FALSE,
+                                    input_shape = c(img_width, img_height, 3))
 
 ```
 
@@ -61,10 +77,9 @@ predictions <- base_model$output %>%
     layer_dense(units = 1024, activation = 'relu') %>%
 #    layer_dropout(0.5) %>%
     layer_dense(units = 1024, activation = 'relu') %>%
-    layer_dense(units = 1024, activation = 'relu') %>%
-    layer_dense(units = 1024, activation = 'relu') %>%
-    layer_dense(units = 5) %>%
-    layer_activation(activation = 'softmax')
+#    layer_dense(units = 1024, activation = 'relu') %>%
+#    layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 5, activation = 'softmax', name = 'output')
 
 ```
 
@@ -129,7 +144,7 @@ train_generator <- flow_images_from_directory(
     target_size = c(img_height, img_width),
     batch_size = batch_size, 
     class_mode = "categorical",
-    save_to_dir = 'generated')
+    save_to_dir = augmented_data)
 
 validation_generator <- flow_images_from_directory(
     validation_data_dir,
@@ -159,12 +174,11 @@ plot(history)
 # Sauvegarde du modèle
 
 ```{r}
-#export_savedmodel(model, 'output/model_weights')
-save_model_hdf5(model, 'output/model_hdf5')
+save_model_hdf5(model, paste0(model_output_dir, 'hdf5'))
 ```
 
 ```{r}
-export_savedmodel(model, 'output/export/')
+export_savedmodel(model, paste0(model_output_dir, 'savedmodel'))
 ```
 
 # Freeze du modèle
@@ -174,7 +188,34 @@ library(keras)
 library(tensorflow)
 
 k_clear_session()
-model <- load_model_hdf5('output/model_hdf5')
+sess <- tf$Session()
+k_set_session(sess)
+model <- load_model_hdf5(paste0(model_output_dir, 'hdf5'))
+k_set_learning_phase(0)
+
+library(tensorflow)
+model$input_names
+model$output_names
+output <- model$output$name
+
+#sess <- k_get_session()
+
+optimized_graph <- sess$graph$as_graph_def()
+
+#tf$train$write_graph(optimized_graph, model_output_dir, 'non_optimized.pb', as_text=FALSE)
+
+optimized_graph <- tf$graph_util$convert_variables_to_constants(sess, optimized_graph, list('output/Softmax'))
+tf$train$write_graph(optimized_graph, model_output_dir, 'constants_optimized.pb', as_text=FALSE)
+
+optimized_graph <- tf$graph_util$remove_training_nodes(optimized_graph)
+
+tf$train$write_graph(optimized_graph, model_output_dir, 'optimized.pb', as_text=FALSE)
+#tf$train$write_graph(optimized_graph, model_output_dir, 'optimized.txt', as_text=TRUE)
+```
+
+```{r}
+k_clear_session()
+model <- load_model_hdf5(paste0(model_output_dir, 'hdf5'))
 k_set_learning_phase(0)
 
 library(tensorflow)
@@ -185,15 +226,34 @@ model$output[1]$name
 sess <- k_get_session()
 
 optimized_graph <- sess$graph$as_graph_def()
-#optimized_graph <- tf$graph_util$remove_training_nodes(optimized_graph)
-optimized_graph <- tf$graph_util$convert_variables_to_constants(sess, optimized_graph, list('strided_slice'))
+transforms <- list(
+    'fold_constants(ignore_errors=true)',
+    'fold_batch_norms',
+    'fold_old_batch_norms',
+    "quantize_weights")
 
-tf$train$write_graph(optimized_graph, 'frozen-orig', 'retrained.pb', as_text=FALSE)
-tf$train$write_graph(optimized_graph, 'frozen-orig', 'retrained.txt', as_text=TRUE)
+#  "quantize_weights", "quantize_nodes",
+#  'fold_batch_norms',
+#  'fold_old_batch_norms')
+#  'quantize_weights']
+#transforms = ['merge_duplicate_nodes']
+                                        #transforms = []
+
+transformed_graph_def = tf$tools$graph_transforms$TransformGraph(optimized_graph,
+                                                                 model$input_names,
+                                                                 model$output[1]$name,
+                                                                 transforms)
+
+tf$train$write_graph(transformed_graph_def, model_output_dir, 'transformed.pb', as_text=FALSE)
+
 ```
 
 # Compilation vers le NCS
 
 ```{bash}
-docker run -v $PWD/frozen-orig/retrained.pb:/model.pb -it geraudster/ncs-container mvNCCompile /model.pb -in 'input_1' -on 'activation_1/Softmax'
+docker pull geraudster/ncs-container
+```
+
+```{bash}
+echo docker run -v $PWD/target/models/optimized.pb:/model.pb -it geraudster/ncs-container mvNCCompile /model.pb -in 'input_1' -on 'strided_slice'
 ```
