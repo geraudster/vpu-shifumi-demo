@@ -1,1 +1,4 @@
 *~
+target/
+*_cache/
+*_files/
