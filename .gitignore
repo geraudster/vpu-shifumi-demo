@@ -2,3 +2,4 @@
 target/
 *_cache/
 *_files/
+.Rhistory
