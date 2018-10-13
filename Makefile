@@ -1,11 +1,16 @@
 
 R_OPTS=--no-save --no-restore --no-init-file --no-site-file # vanilla, but with --environ
 
-sandbox.html: sandbox.Rmd
-	R ${R_OPTS} -e "rmarkdown::render('sandbox.Rmd')"
+.PHONY: target
 
-sandbox-freeze.html: sandbox-freeze.Rmd sandbox-simplemodel.html
-	R ${R_OPTS} -e "rmarkdown::render('sandbox-freeze.Rmd')"
+target:
+	mkdir -p target
 
-sandbox-simplemodel.html: sandbox-simplemodel.Rmd
-	R ${R_OPTS} -e "rmarkdown::render('sandbox-simplemodel.Rmd')"
+target/sandbox.html: target sandbox.Rmd
+	R ${R_OPTS} -e "rmarkdown::render('sandbox.Rmd', output_dir = 'target/')"
+
+target/sandbox-freeze.html: target sandbox-freeze.Rmd
+	R ${R_OPTS} -e "rmarkdown::render('sandbox-freeze.Rmd', output_dir = 'target/')"
+
+target/sandbox-simplemodel.html: target sandbox-simplemodel.Rmd
+	R ${R_OPTS} -e "rmarkdown::render('sandbox-simplemodel.Rmd', output_dir = 'target/')"
