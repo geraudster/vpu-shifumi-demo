@@ -1,6 +1,5 @@
--*- mode: poly-markdown+r -*-
 ---
-title: "An example Knitr/R Markdown document"
+title: "Réutilisation de MobileNet"
 author: "Géraud Dugé de Bernonville"
 date: "29 septembre 2018"
 output: html_document

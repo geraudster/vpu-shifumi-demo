@@ -1,6 +1,5 @@
--*- mode: poly-markdown+r -*-
----
-title: "An example Knitr/R Markdown document"
+--- 
+title: "Freeze d'un modèle"
 author: "Géraud Dugé de Bernonville"
 date: "29 septembre 2018"
 output: html_document
@@ -14,6 +13,9 @@ saved_model_filename <- paste0(model_output_dir, 'simplehdf5')
 # Freeze du modèle
 
 ```{r}
+library(reticulate)
+use_virtualenv('~/.virtualenvs/r-tensorflow-py3', required = TRUE)
+
 library(keras)
 library(tensorflow)
 k_clear_session()
@@ -52,8 +54,11 @@ docker pull geraudster/ncs-container
 On utilise `mvNCCompile` en spécifiant en  `r input` en input et `r output` en output:
 
 ```{bash}
+mkdir -p $PWD/target/ncs
 docker run -v $PWD/target/models/keras_to_tf.pb:/model.pb \
+       	   -v $PWD/target/ncs:/output \
            -it geraudster/ncs-container \
-               mvNCCompile /model.pb -in $INPUT_NAME -on $OUTPUT_NAME \
+               mvNCCompile /model.pb -o /output/ncs.pb \
+	                   -in $INPUT_NAME -on $OUTPUT_NAME \
                || true
 ```
