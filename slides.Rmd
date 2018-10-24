@@ -1,0 +1,138 @@
+---
+title: "À la découverte du Edge Computing"
+author: "Géraud Dugé de Bernonville"
+date: "26 octobre 2018"
+output:
+  ioslides_presentation:
+    widescreen: true
+---
+
+# La problématique
+
+- reconnaissance d'images
+- réseaux de neurones
+- modèles complexes, l'inférence peut être gourmande en ressources physique (mem + cpu)
+- souvent on aimerait que l'inférence soit faite au plus proche du capteur => embarqué
+- embarqué => perf => énergie
+- réduire les échanges réseaux (avec le cloud)
+
+# Le Edge Computing
+
+#+BEGIN_QUOTE
+L'edge computing est une méthode d'optimisation employée dans le cloud computing qui consiste à traiter les données à la périphérie du réseau, près de la source des données
+Wikipedia
+#+END_QUOTE
+
+# Dans le domaine de l'IoT
+
+_Trouver des exemples_
+
+# Image processing
+
+- détection d'objets
+- reconnaissance faciale
+
+# Les réseaux de neurones
+
+- avancée technologique avec les CNN pour le traitement d'images
+
+# VPU
+
+Plusieurs acteurs:
+- Movidius, racheté par Intel
+- Google, dans le cadre du AIY
+
+# Dans le Neural Compute Stick
+
+
+# Démarche
+
+- train ton modèle
+- profile/tune/compile ton modèle sur PC
+- prototype
+
+# Entrainement du modèle
+
+```{r,set_virtualenv,results='hide',message=FALSE,echo=FALSE}
+library(reticulate)
+use_virtualenv('~/.virtualenvs/r-tensorflow-py3', required = TRUE)
+```
+## Chargement des librairies:
+
+```{r,load_libraries,results='hide',message=FALSE}
+library(keras)
+library(tensorflow)
+```
+```{r,settings,results='hide',message=FALSE,echo=FALSE}
+img_width <- 128
+img_height <- 128
+train_data_dir <-  "/home/geraud/data/alphashifumi/train"
+validation_data_dir <-  "/home/geraud/data/alphashifumi/test"
+nb_train_samples <-  4125
+nb_validation_samples <-  466 
+batch_size <-  50
+epochs <-  50
+model_output_dir <- './target/models/'
+augmented_data <- './target/generated/'
+
+if (!dir.exists(model_output_dir)) dir.create(model_output_dir, recursive = TRUE)
+if (!dir.exists(augmented_data)) dir.create(augmented_data, recursive = TRUE)
+```
+
+## Inception
+
+```{r,inception_loading}
+base_model <- application_inception_v3(weight = 'imagenet',
+                                       include_top = FALSE,
+                                       input_shape = c(img_width, img_height, 3))
+```
+
+On ajoute nos couches denses :
+
+```{r,custom_layers}
+predictions <- base_model$output %>%
+    layer_global_average_pooling_2d() %>%
+    layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 5, activation = 'softmax', name = 'output')
+
+```
+
+## On regroupe les morceaux
+
+Le nouveau modèle à entrainer devient :
+```{r,keras_model}
+model <- keras_model(inputs = base_model$input, outputs = predictions)
+```
+
+On _freeze_ toutes les couches, pas besoin de les réentrainer :
+
+```{r,freeze_layers}
+for (layer in base_model$layers)
+  layer$trainable <- FALSE
+```
+
+On _compile_ le modèle :
+
+```{r,model_compilation}
+model %>% compile(optimizer = 'rmsprop',
+                  loss = 'categorical_crossentropy',
+                  metrics = c('accuracy'))
+```
+
+## Entrainement
+
+## Performance
+
+
+## Freeze du modèle
+
+# Compilation
+
+# Test avec le NCS
+
+
+# Liens
+
+- https://software.intel.com/en-us/ai-academy/students/kits/ai-on-the-edge-vision-movidius
+

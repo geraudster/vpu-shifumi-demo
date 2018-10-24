@@ -12,7 +12,6 @@ Installation du package:
 ```{r,results='hide',message=FALSE,cache=TRUE}
 devtools::install_github("rstudio/tensorflow")
 devtools::install_github("rstudio/keras")
-##install_keras(method = 'virtualenv', tensorflow = '1.7.0')
 ```
 
 ```{bash}
@@ -21,8 +20,7 @@ virtualenv -p python3 ~/.virtualenvs/r-tensorflow-py3
 
 ```{r,results='hide',message=FALSE,cache=TRUE}
 library(reticulate)
-##virtualenv_create('r-tensorflow-py3') ## should be created manually
-virtualenv_install('r-tensorflow-py3', 'tensorflow==1.7.0')
+virtualenv_install('r-tensorflow-py3', 'tensorflow==1.9.0')
 virtualenv_install('r-tensorflow-py3', 'keras')
 
 ```
@@ -62,9 +60,14 @@ if (!dir.exists(augmented_data)) dir.create(augmented_data, recursive = TRUE)
 Chargement du modèle MobileNet
 
 ```{r}
-base_model <- application_mobilenet(weight = 'imagenet',
-                                    include_top = FALSE,
-                                    input_shape = c(img_width, img_height, 3))
+#base_model <- application_mobilenet(weight = 'imagenet',
+#                                    include_top = FALSE,
+#                                    input_shape = c(img_width, img_height, 3))
+                                        #
+
+base_model <- application_inception_v3(weight = 'imagenet',
+                                       include_top = FALSE,
+                                       input_shape = c(img_width, img_height, 3))
 
 ```
 
