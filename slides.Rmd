@@ -18,10 +18,7 @@ output:
 
 # Le Edge Computing
 
-#+BEGIN_QUOTE
-L'edge computing est une méthode d'optimisation employée dans le cloud computing qui consiste à traiter les données à la périphérie du réseau, près de la source des données
-Wikipedia
-#+END_QUOTE
+> L'edge computing est une méthode d'optimisation employée dans le cloud computing qui consiste à traiter les données à la périphérie du réseau, près de la source des données -- Wikipedia
 
 # Dans le domaine de l'IoT
 
@@ -112,6 +109,18 @@ for (layer in base_model$layers)
   layer$trainable <- FALSE
 ```
 
+## Modèle simple
+
+```{r,simple_model}
+model <- keras_model_sequential()
+model %>%
+    layer_flatten(input_shape = c(128, 128, 3)) %>%
+    layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 5, activation = 'softmax', name = 'output')
+```
+## Compilation
+
 On _compile_ le modèle :
 
 ```{r,model_compilation}
@@ -120,10 +129,47 @@ model %>% compile(optimizer = 'rmsprop',
                   metrics = c('accuracy'))
 ```
 
+```{r,datagen,results='hide',echo=FALSE,message=FALSE}
+datagen <- image_data_generator(
+    rescale = 1./255,
+    horizontal_flip = TRUE,
+    fill_mode = "nearest",
+    zoom_range = 0.3,
+    width_shift_range = 0.3,
+    height_shift_range = 0.3,
+    rotation_range = 30,
+    data_format = 'channels_last')
+
+train_generator <- flow_images_from_directory(
+    train_data_dir,
+    generator = datagen,
+    target_size = c(img_height, img_width),
+    batch_size = batch_size, 
+    class_mode = "categorical",
+    save_to_dir = augmented_data)
+
+validation_generator <- flow_images_from_directory(
+    validation_data_dir,
+    generator = datagen,
+    target_size = c(img_height, img_width),
+    class_mode = "categorical")
+```
+
 ## Entrainement
+
+```{r,train_model}
+history <- model %>% fit_generator(train_generator,
+                                   validation_data = validation_generator,
+                                   steps_per_epoch = 5,
+                                   validation_steps = 10,
+                                   epochs = 5)
+```
 
 ## Performance
 
+```{r}
+plot(history)
+```
 
 ## Freeze du modèle
 
