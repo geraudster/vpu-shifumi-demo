@@ -78,12 +78,12 @@ knitr::include_graphics("slides/MLP_forward_1.jpeg")
 ## VPU {.build}
 
 
-```{r,Movidius,out.width='40%', fig.align='center', fig.cap='Movidius (acheté par Intel)', echo=FALSE}
+```{r,Movidius,out.width='70%', fig.align='center', fig.cap='Movidius (acheté par Intel)', echo=FALSE}
 knitr::include_graphics("slides/Screenshot_2018-10-24 Intel® Movidius™ Neural Compute Stick.png")
 ```
 
 
-```{r,google_aiy,out.width='40%', fig.align='center', fig.cap='Google AIY', echo=FALSE}
+```{r,google_aiy,out.width='70%', fig.align='center', fig.cap='Google AIY', echo=FALSE}
 knitr::include_graphics("slides/Screenshot_2018-10-24 Edge TPU Devices.png")
 ```
 
@@ -91,15 +91,25 @@ knitr::include_graphics("slides/Screenshot_2018-10-24 Edge TPU Devices.png")
 
 ## {data-background=slides/NCS1_ArchDiagram.jpg data-background-size=cover}
 
+<div class="notes">
 - an array of 12 VLIW vector processors called SHAVE processors. These processors are used to accelerate neural networks by running parts of the neural networks in parallel.
 - SPARC microprocessor core that runs custom firmware
 - A LEON processor coordinates receiving the graph file and images for inference via the USB connection. It also parses the graph file and schedules kernels to the SHAVE neural compute accelerator engines. In addition, the LEON processor also takes care of monitoring die temperature and throttling processing on high temperature alerts
+</div>
 
-# Démarche
+# Démarche {.build}
 
 - train ton modèle
 - profile/tune/compile ton modèle sur PC
-- prototype
+- prototype sur système embarqué
+
+# Exemple {data-background=slides/adult-ai-artificial-intelligence-1020325.jpg data-background-size=cover}
+
+# Alphashifumi {data-background=slides/alphashifumi_v1.jpg data-background-size=contain}
+
+## V2 {data-background=slides/alphashifumi_v2.jpg data-background-size=contain}
+
+## V3 {data-background=slides/T800.jpg data-background-size=contain}
 
 # Entrainement du modèle
 
@@ -113,6 +123,7 @@ use_virtualenv('~/.virtualenvs/r-tensorflow-py3', required = TRUE)
 library(keras)
 library(tensorflow)
 ```
+
 ```{r,settings,results='hide',message=FALSE,echo=FALSE}
 img_width <- 128
 img_height <- 128
@@ -129,39 +140,6 @@ if (!dir.exists(model_output_dir)) dir.create(model_output_dir, recursive = TRUE
 if (!dir.exists(augmented_data)) dir.create(augmented_data, recursive = TRUE)
 ```
 
-## Inception
-
-```{r,inception_loading}
-base_model <- application_inception_v3(weight = 'imagenet',
-                                       include_top = FALSE,
-                                       input_shape = c(img_width, img_height, 3))
-```
-
-On ajoute nos couches denses :
-
-```{r,custom_layers}
-predictions <- base_model$output %>%
-    layer_global_average_pooling_2d() %>%
-    layer_dense(units = 1024, activation = 'relu') %>%
-    layer_dense(units = 1024, activation = 'relu') %>%
-    layer_dense(units = 5, activation = 'softmax', name = 'output')
-
-```
-
-## On regroupe les morceaux
-
-Le nouveau modèle à entrainer devient :
-```{r,keras_model}
-model <- keras_model(inputs = base_model$input, outputs = predictions)
-```
-
-On _freeze_ toutes les couches, pas besoin de les réentrainer :
-
-```{r,freeze_layers}
-for (layer in base_model$layers)
-  layer$trainable <- FALSE
-```
-
 ## Modèle simple
 
 ```{r,simple_model}
@@ -171,6 +149,7 @@ model %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 5, activation = 'softmax', name = 'output')
+summary(model)
 ```
 ## Compilation
 
@@ -210,7 +189,7 @@ validation_generator <- flow_images_from_directory(
 
 ## Entrainement
 
-```{r,train_model,cache=TRUE}
+```{r,train_model}
 history <- model %>% fit_generator(train_generator,
                                    validation_data = validation_generator,
                                    steps_per_epoch = 5,
@@ -220,42 +199,237 @@ history <- model %>% fit_generator(train_generator,
 
 ## Performance
 
-```{r,train_history,cache=TRUE}
+```{r,train_history}
 plot(history)
 ```
 
 ## Freeze du modèle
 
-```{r,freeze_model,cache=TRUE}
+```{r,freeze_model}
 source('freeze.R')
 
 io_names <- freeze(model)
-set_io_names_env(io_names$input, io_names$output)
 ```
 
 # Compilation
 
-```{bash,ncscompile,results='hide',echo=FALSE,message=FALSE,cache=TRUE}
-mkdir -p $PWD/target/ncs
-docker run -v $PWD/target/models/keras_to_tf.pb:/model.pb \
-       	   -v $PWD/target/ncs:/output \
-           -it geraudster/ncs-container \
-               mvNCCompile /model.pb -o /output/ncs.pb \
-	       -in $INPUT_NAME \
- 	       -on $OUTPUT_NAME \
-               || true
-#$
+
+## Toolkit 
+
+On compile le modèle dans un format pris en charge par le NCS.
+Avec :
+
+- `r io_names$input` en entrée
+- `r io_names$output` en sortie.
+                                       
+```{r,set_io_names_env,echo=FALSE}
+source('freeze.R')
+
+set_io_names_env(io_names$input, io_names$output)
 ```
 
-```{bash,eval=FALSE}
-mvNCCompile /model.pb -o /output/ncs.pb \
+```{bash,ncscompile}
+PYTHONPATH="${PYTHONPATH}:/opt/movidius/caffe/python"
+source /opt/movidius/virtualenv-python/bin/activate
+mkdir -p $PWD/target/ncs
+
+mvNCCompile target/models/keras_to_tf.pb -o target/ncs/ncs.graph \
 	       -in $INPUT_NAME \
- 	       -on $OUTPUT_NAME
+ 	       -on $OUTPUT_NAME \
+         -is 128 128
 #$
 ```
 
 # Test avec le NCS
 
+## Liste des devices
+
+```{r,set_virtualenv_ncs,results='hide',message=FALSE,echo=FALSE}
+library(reticulate)
+use_virtualenv('/opt/movidius/virtualenv-python', required = TRUE)
+```
+
+```{python,device_list}
+from mvnc import mvncapi
+
+device_list = mvncapi.enumerate_devices()
+print(device_list)
+```
+
+Initialisation et ouverture d'un device :
+
+```{python,device_open}
+device = mvncapi.Device(device_list[0])
+device.open()
+```
+
+---
+
+Affichage de quelques options :
+```{python,device_options}
+print(device.get_option(mvncapi.DeviceOption.RO_DEVICE_NAME))
+print(device.get_option(mvncapi.DeviceOption.RO_MEMORY_SIZE))
+print(device.get_option(mvncapi.DeviceOption.RO_DEVICE_STATE))
+```
+
+## Chargement du graphe
+
+```{python,graph_to_buffer}
+GRAPH_FILEPATH = './target/ncs/ncs.graph'
+with open(GRAPH_FILEPATH, mode='rb') as f:
+    graph_buffer = f.read()
+```
+
+On utilise la classe _Graph_ :
+```{python,init_graph}
+graph = mvncapi.Graph('graph1')
+```
+
+Les entrées/sorties du graphe sont gérés par des files. On peut les créer avec les paramètres par défaut :
+```{python,init_fifo}
+input_fifo, output_fifo = graph.allocate_with_fifos(device, graph_buffer)
+```
+
+## Inférons 1/2
+
+On charge une image :
+
+```{r,image_sample,out.width='10%', fig.align='center', fig.cap='Exemple shifumi', echo=FALSE}
+knitr::include_graphics("data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b68540d-1.jpg")
+```
+
+```{python,first_inference}
+import cv2
+import numpy
+
+tensor = cv2.imread('data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b68540d-1.jpg')
+tensor = tensor.astype(numpy.float32)
+```
+
+L'image est ensuite poussée dans la file d'entrée :
+```{python,queue_inference}
+graph.queue_inference_with_fifo_elem(input_fifo, output_fifo, tensor, 'test paper')
+```
+
+## Inférons 2/2
+
+L'image va être lue par le device qui va ensuite procéder à l'inférence. Le résultat est ensuite poussé dans la file de sortie :
+```{python,read_inference}
+output, user_obj = output_fifo.read_elem()
+print(output)
+print(user_obj)
+```
+
+
+## Nettoyage
+
+```{python,clean_all_1}
+input_fifo.destroy()
+output_fifo.destroy()
+graph.destroy()
+device.close()
+device.destroy()
+```
+
+# Benchmark
+
+## CPU vs. VPU
+
+CPU :
+```{r,benchmark_r,echo=FALSE}
+img_preproc <- function(img) {
+    image_load(img) %>%
+        image_to_array
+}
+
+img_dir  <- 'data/alphashifumi/test'
+imgs <- lapply(list.files(img_dir, recursive = TRUE), function(filename) {
+    img_preproc(paste(img_dir, filename, sep = '/')) %>%
+        array_reshape(c(1, img_height, img_width, 3))
+})
+
+sapply(imgs, function(img) {
+    system.time(predict(model, img))['elapsed']
+}) %>% summary(digits = 3)
+```
+
+```{python,benchmark_ncs,echo=FALSE}
+from mvnc import mvncapi
+
+device_list = mvncapi.enumerate_devices()
+device = mvncapi.Device(device_list[0])
+device.open()
+GRAPH_FILEPATH = './target/ncs/ncs.graph'
+with open(GRAPH_FILEPATH, mode='rb') as f:
+    graph_buffer = f.read()
+
+graph = mvncapi.Graph('graph1')
+input_fifo, output_fifo = graph.allocate_with_fifos(device, graph_buffer)
+
+import cv2
+import numpy
+
+import os
+import time
+
+tensors = [ cv2.imread(os.path.join(dirname, filename)).astype(numpy.float32) for dirname, dirnames, filenames in os.walk('data/alphashifumi/test') for filename in filenames ]
+times = []
+for tensor in tensors:
+    start = time.time()
+    graph.queue_inference_with_fifo_elem(input_fifo, output_fifo, tensor, 'test paper')
+    output, user_obj = output_fifo.read_elem()
+    times.append(time.time() - start)
+```
+
+```{python,clean_all_2,echo=FALSE}
+input_fifo.destroy()
+output_fifo.destroy()
+graph.destroy()
+device.close()
+device.destroy()
+```
+VPU :
+```{r,summary_vpu,echo=FALSE}
+summary(py$times, digits = 3)
+```
+
+# Transfer Learning
+
+<div class="notes">
+
+## Inception
+
+```{r,inception_loading,eval=FALSE}
+base_model <- application_inception_v3(weight = 'imagenet',
+                                       include_top = FALSE,
+                                       input_shape = c(img_width, img_height, 3))
+```
+
+On ajoute nos couches denses :
+
+```{r,custom_layers,eval=FALSE}
+predictions <- base_model$output %>%
+    layer_global_average_pooling_2d() %>%
+    layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 5, activation = 'softmax', name = 'output')
+
+```
+
+## On regroupe les morceaux
+
+Le nouveau modèle à entrainer devient :
+```{r,keras_model,eval=FALSE}
+model <- keras_model(inputs = base_model$input, outputs = predictions)
+```
+
+On _freeze_ toutes les couches, pas besoin de les réentrainer :
+
+```{r,freeze_layers,eval=FALSE}
+for (layer in base_model$layers)
+  layer$trainable <- FALSE
+```
+</div>
 
 # Liens
 
