@@ -1,46 +1,99 @@
 ---
-title: "À la découverte du Edge Computing"
+title: "Embarquez vos réseaux de neurones"
+subtitle: "À la découverte du Edge Computing avec le Neural Stick Computing"
 author: "Géraud Dugé de Bernonville"
 date: "26 octobre 2018"
 output:
   ioslides_presentation:
     widescreen: true
+    logo: slides/red.png
 ---
 
 # La problématique
 
+> - IoT
+> - Cloud
+> - Performance
+> - Énergie
+
+## {data-background=slides/air-aircraft-clouds-219701.jpg data-background-size=cover}
+
+## {data-background=slides/object-detection-recognition-and-tracking-fig00.jpg data-background-size=cover}
+
+## {data-background=slides/2017-05-03-segmentation11-large.png data-background-size=cover}
+
+## {data-background=slides/Neurons-by-Penn-State.jpg data-background-size=cover}
+
+<div class="notes">
+
 - reconnaissance d'images
 - réseaux de neurones
+
 - modèles complexes, l'inférence peut être gourmande en ressources physique (mem + cpu)
 - souvent on aimerait que l'inférence soit faite au plus proche du capteur => embarqué
 - embarqué => perf => énergie
 - réduire les échanges réseaux (avec le cloud)
+</div>
 
-# Le Edge Computing
+# Récap' {data-background=slides/blur-figurine-landscape-1084751.jpg data-background-size=cover}
+
+
+## Les bases {.smaller}
+
+Perceptron was created in 1957 by Frank Rosenblatt
+
+```{r,Perceptron,out.width='25%', fig.align='center', fig.cap='Perceptron', echo=FALSE}
+knitr::include_graphics("slides/artificial_neuron.jpg")
+```
+
+* **Input**: $(x_1, x_2, ..., x_n)$ a n-vector
+* **Weights:** $(w_1, w_2, ..., w_n)$ a n-vector
+* **Bias:** b, a scalar
+* **Output:**: 
+
+$y = \begin{cases}
+1,  & \text{if $\sum_{i=1}^n x_i.w_i + b > $ threshold} \\
+0, & {otherwise}
+\end{cases}$
+
+## {data-background=slides/neuralnetworks.png data-background-size=contain}
+
+## Inférence
+
+```{r,MLP_forward_propagation,out.width='25%', fig.align='center', fig.cap='MLP forward propagation', echo=FALSE}
+knitr::include_graphics("slides/MLP_forward_1.jpeg")
+```
+* $x$ vector representing one input data sample, $f$ activation function
+* $a^{(1)} = x$
+* $z^{(2)} = a^{(1)}.W^{(1)} + b^{(1)} = x.W^{(1)} + b^{(1)}$
+* $a^{(2)} = f(z^{(2)})$
+* $z^{(3)} = a^{(2)}.W^{(2)} + b^{(2)}$
+* $y = a^{(3)} = f(z^{(3)})$
+
+
+# Edge Computing
 
 > L'edge computing est une méthode d'optimisation employée dans le cloud computing qui consiste à traiter les données à la périphérie du réseau, près de la source des données -- Wikipedia
 
-# Dans le domaine de l'IoT
+## VPU {.build}
 
-_Trouver des exemples_
 
-# Image processing
+```{r,Movidius,out.width='40%', fig.align='center', fig.cap='Movidius (acheté par Intel)', echo=FALSE}
+knitr::include_graphics("slides/Screenshot_2018-10-24 Intel® Movidius™ Neural Compute Stick.png")
+```
 
-- détection d'objets
-- reconnaissance faciale
 
-# Les réseaux de neurones
-
-- avancée technologique avec les CNN pour le traitement d'images
-
-# VPU
-
-Plusieurs acteurs:
-- Movidius, racheté par Intel
-- Google, dans le cadre du AIY
+```{r,google_aiy,out.width='40%', fig.align='center', fig.cap='Google AIY', echo=FALSE}
+knitr::include_graphics("slides/Screenshot_2018-10-24 Edge TPU Devices.png")
+```
 
 # Dans le Neural Compute Stick
 
+## {data-background=slides/NCS1_ArchDiagram.jpg data-background-size=cover}
+
+- an array of 12 VLIW vector processors called SHAVE processors. These processors are used to accelerate neural networks by running parts of the neural networks in parallel.
+- SPARC microprocessor core that runs custom firmware
+- A LEON processor coordinates receiving the graph file and images for inference via the USB connection. It also parses the graph file and schedules kernels to the SHAVE neural compute accelerator engines. In addition, the LEON processor also takes care of monitoring die temperature and throttling processing on high temperature alerts
 
 # Démarche
 
@@ -157,7 +210,7 @@ validation_generator <- flow_images_from_directory(
 
 ## Entrainement
 
-```{r,train_model}
+```{r,train_model,cache=TRUE}
 history <- model %>% fit_generator(train_generator,
                                    validation_data = validation_generator,
                                    steps_per_epoch = 5,
@@ -167,13 +220,39 @@ history <- model %>% fit_generator(train_generator,
 
 ## Performance
 
-```{r}
+```{r,train_history,cache=TRUE}
 plot(history)
 ```
 
 ## Freeze du modèle
 
+```{r,freeze_model,cache=TRUE}
+source('freeze.R')
+
+io_names <- freeze(model)
+set_io_names_env(io_names$input, io_names$output)
+```
+
 # Compilation
+
+```{bash,ncscompile,results='hide',echo=FALSE,message=FALSE,cache=TRUE}
+mkdir -p $PWD/target/ncs
+docker run -v $PWD/target/models/keras_to_tf.pb:/model.pb \
+       	   -v $PWD/target/ncs:/output \
+           -it geraudster/ncs-container \
+               mvNCCompile /model.pb -o /output/ncs.pb \
+	       -in $INPUT_NAME \
+ 	       -on $OUTPUT_NAME \
+               || true
+#$
+```
+
+```{bash,eval=FALSE}
+mvNCCompile /model.pb -o /output/ncs.pb \
+	       -in $INPUT_NAME \
+ 	       -on $OUTPUT_NAME
+#$
+```
 
 # Test avec le NCS
 
@@ -182,3 +261,10 @@ plot(history)
 
 - https://software.intel.com/en-us/ai-academy/students/kits/ai-on-the-edge-vision-movidius
 
+# Credits
+
+- Neurons-by-Penn-State.jpg (Photo credit: Penn State)
+- 2017-05-03-segmentation11-large.png (https://blog.mapillary.com/product/2017/05/03/mapillary-vistas-dataset.html)
+- object-detection-recognition-and-tracking-fig00.jpg (https://software.intel.com/en-us/articles/a-closer-look-at-object-detection-recognition-and-tracking)
+- neuralnetworks.png (http://www.asimovinstitute.org/neural-network-zoo/)
+- 
