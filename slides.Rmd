@@ -184,6 +184,7 @@ model %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 5, activation = 'softmax', name = 'output')
 ```
+
 ```{r,summary_simple_model,echo=FALSE}
 summary(model)
 ```
@@ -326,11 +327,12 @@ from mvnc import mvncapi
 
 device_list = mvncapi.enumerate_devices()
 print(device_list)
+has_device = bool(device_list)
 ```
 
 Initialisation et ouverture d'un device :
 
-```{python,device_open,eval=py$device_list}
+```{python,device_open,eval=py$has_device}
 device = mvncapi.Device(device_list[0])
 device.open()
 ```
@@ -338,7 +340,7 @@ device.open()
 ---
 
 Affichage de quelques options :
-```{python,device_options,eval=py$device_list}
+```{python,device_options,eval=py$has_device}
 print(device.get_option(mvncapi.DeviceOption.RO_DEVICE_NAME))
 print(device.get_option(mvncapi.DeviceOption.RO_MEMORY_SIZE))
 print(device.get_option(mvncapi.DeviceOption.RO_DEVICE_STATE))
@@ -346,19 +348,19 @@ print(device.get_option(mvncapi.DeviceOption.RO_DEVICE_STATE))
 
 ## Chargement du graphe
 
-```{python,graph_to_buffer,eval=py$device_list}
+```{python,graph_to_buffer,eval=py$has_device}
 GRAPH_FILEPATH = './target/ncs/ncs.graph'
 with open(GRAPH_FILEPATH, mode='rb') as f:
     graph_buffer = f.read()
 ```
 
 On utilise la classe _Graph_ :
-```{python,init_graph,eval=py$device_list}
+```{python,init_graph,eval=py$has_device}
 graph = mvncapi.Graph('graph1')
 ```
 
 Les entrées/sorties du graphe sont gérés par des files. On peut les créer avec les paramètres par défaut :
-```{python,init_fifo,eval=py$device_list}
+```{python,init_fifo,eval=py$has_device}
 input_fifo, output_fifo = graph.allocate_with_fifos(device, graph_buffer)
 ```
 
@@ -370,7 +372,7 @@ On charge une image :
 knitr::include_graphics("data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b68540d-1.jpg")
 ```
 
-```{python,first_inference,eval=py$device_list}
+```{python,first_inference,eval=py$has_device}
 import cv2
 import numpy
 
@@ -378,20 +380,20 @@ tensor = cv2.imread('data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b
 tensor = tensor.astype(numpy.float32)
 ```
 
-```{python,np_zeros,echo=FALSE}
+```{python,np_zeros,echo=FALSE,eval=py$has_device}
 import numpy as np
 tensor = np.zeros([128,128,3], numpy.float32)
 ```
 
 L'image est ensuite poussée dans la file d'entrée :
-```{python,queue_inference,eval=py$device_list}
+```{python,queue_inference,eval=py$has_device}
 graph.queue_inference_with_fifo_elem(input_fifo, output_fifo, tensor, 'test paper')
 ```
 
 ## Inférons 2/2
 
 L'image va être lue par le device qui va ensuite procéder à l'inférence. Le résultat est ensuite poussé dans la file de sortie :
-```{python,read_inference,eval=py$device_list}
+```{python,read_inference,eval=py$has_device}
 output, user_obj = output_fifo.read_elem()
 print(output)
 print(user_obj)
@@ -400,7 +402,7 @@ print(user_obj)
 
 ## Nettoyage
 
-```{python,clean_all_1,eval=py$device_list}
+```{python,clean_all_1,eval=py$has_device}
 input_fifo.destroy()
 output_fifo.destroy()
 graph.destroy()
@@ -425,7 +427,7 @@ sapply(imgs, function(img) {
 }) %>% summary(digits = 3)
 ```
 
-```{python,benchmark_ncs,echo=FALSE,eval=py$device_list}
+```{python,benchmark_ncs,echo=FALSE,eval=py$has_device}
 from mvnc import mvncapi
 
 device_list = mvncapi.enumerate_devices()
@@ -453,7 +455,7 @@ for tensor in tensors:
     times.append(time.time() - start)
 ```
 
-```{python,clean_all_2,echo=FALSE,eval=py$device_list}
+```{python,clean_all_2,echo=FALSE,eval=py$has_device}
 input_fifo.destroy()
 output_fifo.destroy()
 graph.destroy()
@@ -461,7 +463,7 @@ device.close()
 device.destroy()
 ```
 VPU :
-```{r,summary_vpu,echo=FALSE,eval=py$device_list}
+```{r,summary_vpu,echo=FALSE,eval=py$has_device}
 summary(py$times, digits = 3)
 ```
 
