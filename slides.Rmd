@@ -7,7 +7,6 @@ output:
   ioslides_presentation:
     widescreen: true
     logo: slides/red.png
-    theme: cosmo
 ---
 
 # La problématique
@@ -58,6 +57,17 @@ $y = \begin{cases}
 \end{cases}$
 
 ## {data-background=slides/neuralnetworks.png data-background-size=contain}
+
+## Entrainement {.build}
+
+```{r,MLP_training,out.width='300px', fig.align='center', echo=FALSE}
+knitr::include_graphics("slides/MLP_forward_1.jpeg")
+```
+
+```{r,MLP_training_with_dataset,out.width='400px', fig.align='center', echo=FALSE}
+knitr::include_graphics("slides/mlp_training.png")
+```
+
 
 ## Inférence
 
@@ -163,10 +173,11 @@ img_width <- 128
 img_height <- 128
 train_data_dir <-  "/home/geraud/data/alphashifumi/train"
 validation_data_dir <-  "/home/geraud/data/alphashifumi/test"
-nb_train_samples <-  4125
-nb_validation_samples <-  466 
-batch_size <-  50
-epochs <-  50
+nb_classes <- 5
+nb_train_samples <- 1300 
+nb_validation_samples <- 300
+batch_size <- 64
+epochs <- 50
 model_output_dir <- './target/models/'
 augmented_data <- './target/generated/'
 
@@ -179,7 +190,7 @@ if (!dir.exists(augmented_data)) dir.create(augmented_data, recursive = TRUE)
 ```{r,simple_model}
 model <- keras_model_sequential()
 model %>%
-    layer_flatten(input_shape = c(128, 128, 3)) %>%
+    layer_flatten(input_shape = c(128, 128, 1)) %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 5, activation = 'softmax', name = 'output')
@@ -200,29 +211,11 @@ model %>% compile(optimizer = 'rmsprop',
 ```
 
 ```{r,datagen,results='hide',echo=FALSE,message=FALSE}
-datagen <- image_data_generator(
-    rescale = 1./255,
-    horizontal_flip = TRUE,
-    fill_mode = "nearest",
-    zoom_range = 0.3,
-    width_shift_range = 0.3,
-    height_shift_range = 0.3,
-    rotation_range = 30,
-    data_format = 'channels_last')
+source('prepare_data.R')
 
-train_generator <- flow_images_from_directory(
-    train_data_dir,
-    generator = datagen,
-    target_size = c(img_height, img_width),
-    batch_size = batch_size, 
-    class_mode = "categorical",
-    save_to_dir = augmented_data)
-
-validation_generator <- flow_images_from_directory(
-    validation_data_dir,
-    generator = datagen,
-    target_size = c(img_height, img_width),
-    class_mode = "categorical")
+generators <- get_generators('grayscale')
+train_generator <- generators[[1]]
+validation_generator <- generators[[2]]
 ```
 
 ## Entrainement {.build}
@@ -230,16 +223,16 @@ validation_generator <- flow_images_from_directory(
 ```{r,train_model}
 history <- model %>% fit_generator(train_generator,
                                    validation_data = validation_generator,
-                                   steps_per_epoch = 5,
-                                   validation_steps = 10,
-                                   epochs = 5)
+                                   steps_per_epoch = nb_train_samples / batch_size,
+                                   validation_steps = nb_validation_samples / batch_size,
+                                   epochs = 10)
 ```
 
 ```{r,img_preproc,echo=FALSE}
 img_preproc <- function(img) {
-    image_load(img) %>%
+    image_load(img, grayscale = TRUE) %>%
         image_to_array %>%
-        array_reshape(c(1, img_width, img_height, 3))
+        array_reshape(c(1, img_width, img_height, 1))
 }
 sample_img <- img_preproc("data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b68540d-1.jpg")
 ```
@@ -260,7 +253,7 @@ save_model_hdf5(model, 'target/models/slide.hdf5')
 ## Performance
 
 ```{r,train_history}
-plot(history)
+plot(history, type = 'l')
 ```
 
 ## Freeze du modèle
@@ -373,16 +366,16 @@ knitr::include_graphics("data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1
 ```
 
 ```{python,first_inference,eval=py$has_device}
-import cv2
+from scipy import misc
 import numpy
 
-tensor = cv2.imread('data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b68540d-1.jpg')
+tensor = misc.imread('data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b68540d-1.jpg')
 tensor = tensor.astype(numpy.float32)
 ```
 
 ```{python,np_zeros,echo=FALSE,eval=py$has_device}
 import numpy as np
-tensor = np.zeros([128,128,3], numpy.float32)
+tensor = np.zeros([128,128,1], numpy.float32)
 ```
 
 L'image est ensuite poussée dans la file d'entrée :
@@ -440,13 +433,13 @@ with open(GRAPH_FILEPATH, mode='rb') as f:
 graph = mvncapi.Graph('graph1')
 input_fifo, output_fifo = graph.allocate_with_fifos(device, graph_buffer)
 
-import cv2
+from scipy import misc
 import numpy
 
 import os
 import time
 
-tensors = [ cv2.imread(os.path.join(dirname, filename)).astype(numpy.float32) for dirname, dirnames, filenames in os.walk('data/alphashifumi/test') for filename in filenames ]
+tensors = [ misc.imread(os.path.join(dirname, filename)).astype(numpy.float32) for dirname, dirnames, filenames in os.walk('data/alphashifumi/test') for filename in filenames ]
 times = []
 for tensor in tensors:
     start = time.time()
@@ -512,14 +505,18 @@ for (layer in base_model$layers)
 ## Performance
 
 ```{r,train_model_transfer,echo=FALSE}
+generators <- get_generators('rgb')
+train_generator <- generators[[1]]
+validation_generator <- generators[[2]]
+
 model %>% compile(optimizer = 'rmsprop',
                   loss = 'categorical_crossentropy',
                   metrics = c('accuracy'))
 history <- model %>% fit_generator(train_generator,
                                    validation_data = validation_generator,
-                                   steps_per_epoch = 10,
-                                   validation_steps = 5,
-                                   epochs = 6)
+                                   steps_per_epoch = nb_train_samples / batch_size,
+                                   validation_steps = nb_validation_samples / batch_size,
+                                   epochs = 10)
 plot(history)
 ```
 
