@@ -64,7 +64,7 @@ $y = \begin{cases}
 knitr::include_graphics("slides/MLP_forward_1.jpeg")
 ```
 
-```{r,MLP_training_with_dataset,out.width='400px', fig.align='center', echo=FALSE}
+```{r,MLP_training_with_dataset,out.width='450px', fig.align='center', echo=FALSE}
 knitr::include_graphics("slides/mlp_training.png")
 ```
 
@@ -187,7 +187,7 @@ if (!dir.exists(augmented_data)) dir.create(augmented_data, recursive = TRUE)
 
 ## Modèle simple
 
-```{r,simple_model}
+```{r,simple_model,collapse=TRUE}
 model <- keras_model_sequential()
 model %>%
     layer_flatten(input_shape = c(128, 128, 1)) %>%
@@ -518,6 +518,26 @@ history <- model %>% fit_generator(train_generator,
                                    validation_steps = nb_validation_samples / batch_size,
                                    epochs = 10)
 plot(history)
+
+io_names <- freeze(model, model_output_file = 'transfer_to_tf')
+set_io_names_env(io_names$input, io_names$output)
+```
+
+```{R}
+summary(model)
+```
+
+```{bash,ncscompile_model_transfer,echo=FALSE}
+PYTHONPATH="${PYTHONPATH}:/opt/movidius/caffe/python"
+source /opt/movidius/virtualenv-python/bin/activate
+mkdir -p $PWD/target/ncs
+
+mvNCCompile target/models/transfer_to_tf.pb -o target/ncs/ncs-transfer.graph \
+	       -in $INPUT_NAME \
+ 	       -on $OUTPUT_NAME \
+         -is 128 128 || true
+#$
+
 ```
 
 ## {data-background=slides/422.jpeg data-background-size=contain}

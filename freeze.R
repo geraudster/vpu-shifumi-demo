@@ -16,7 +16,7 @@ set_io_names_env <- function(input, output) {
                OUTPUT_NAME = output)
 }
 
-freeze <- function(model, sess = k_get_session(), model_output_dir = './target/models/', type = 'pb') {
+freeze <- function(model, sess = k_get_session(), model_output_dir = './target/models/', model_output_file = 'keras_to_tf', type = 'pb') {
     ## re-build a model where the learning phase is now hard-coded to 0
     k_set_learning_phase(0)
 
@@ -34,7 +34,7 @@ freeze <- function(model, sess = k_get_session(), model_output_dir = './target/m
     optimized_graph <- tf$graph_util$convert_variables_to_constants(sess, optimized_graph, list(io_names$output))
 
 
-    tf$train$write_graph(optimized_graph, model_output_dir, paste('keras_to_tf', type, sep='.'), as_text=(type == 'txt'))
+    tf$train$write_graph(optimized_graph, model_output_dir, paste(model_output_file, type, sep='.'), as_text=(type == 'txt'))
 #    tf$train$write_graph(optimized_graph, model_output_dir, 'keras_to_tf.txt', as_text=TRUE)
 
     message(paste('Model written in', model_output_dir))
