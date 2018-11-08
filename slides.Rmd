@@ -169,8 +169,8 @@ library(tensorflow)
 ```
 
 ```{r,settings,results='hide',message=FALSE,echo=FALSE}
-img_width <- 128
-img_height <- 128
+img_width <- 224
+img_height <- 224
 train_data_dir <-  "/home/geraud/data/alphashifumi/train"
 validation_data_dir <-  "/home/geraud/data/alphashifumi/test"
 nb_classes <- 5
@@ -472,18 +472,43 @@ summary(py$times, digits = 3)
 ```{r,inception_loading}
 k_clear_session()
 k_set_learning_phase(1)
-base_model <- application_inception_v3(weight = 'imagenet',
-                                       include_top = FALSE,
-                                       input_shape = c(img_width, img_height, 3))
+##base_model <- application_vgg16(weight = 'imagenet',
+##                                include_top = FALSE,
+##                                input_shape = c(img_width, img_height, 3))
+
+base_model <- application_mobilenet(weight = 'imagenet',
+                                    include_top = FALSE,
+                                    input_shape = c(img_width, img_height, 3),
+                                    pooling = 'avg')
+
+
+##base_model <- application_inception_v3(weight = 'imagenet',
+##                                       include_top = FALSE,
+##                                       input_shape = c(img_width, img_height, 3),
+##                                       pooling = 'avg')
+##
+
+##base_model <- application_densenet121(weight = 'imagenet',
+##                                   include_top = FALSE,
+##                                   input_shape = c(img_width, img_height, 3),
+##                                   pooling = 'avg')
+##
+
+##base_model <- application_inception_resnet_v2(weight = 'imagenet',
+##                                              include_top = FALSE,
+##                                              input_shape = c(img_width, img_height, 3))
+##
+
+
 ```
 
 On ajoute nos couches denses :
 
 ```{r,custom_layers}
 predictions <- base_model$output %>%
-    layer_global_average_pooling_2d() %>%
     layer_dense(units = 1024, activation = 'relu') %>%
     layer_dense(units = 1024, activation = 'relu') %>%
+    layer_dense(units = 512, activation = 'relu') %>%
     layer_dense(units = 5, activation = 'softmax', name = 'output')
 
 ```
@@ -512,6 +537,7 @@ validation_generator <- generators[[2]]
 model %>% compile(optimizer = 'rmsprop',
                   loss = 'categorical_crossentropy',
                   metrics = c('accuracy'))
+
 history <- model %>% fit_generator(train_generator,
                                    validation_data = validation_generator,
                                    steps_per_epoch = nb_train_samples / batch_size,
