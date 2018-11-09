@@ -11,10 +11,12 @@ output:
 
 # La problématique
 
+<div class="gray">
 > - IoT
 > - Cloud
 > - Performance
 > - Énergie
+</div>
 
 ## {data-background=slides/air-aircraft-clouds-219701.jpg data-background-size=cover}
 
@@ -40,19 +42,19 @@ output:
 
 ## Les bases {.smaller}
 
-Perceptron was created in 1957 by Frank Rosenblatt
+1957: Création du _Perceptron_ par Frank Rosenblatt
 
 ```{r,Perceptron,out.width='30%', fig.align='center', echo=FALSE}
 knitr::include_graphics("slides/artificial_neuron.jpg")
 ```
 
-* **Input**: $(x_1, x_2, ..., x_n)$ a n-vector
-* **Weights:** $(w_1, w_2, ..., w_n)$ a n-vector
-* **Bias:** b, a scalar
-* **Output:**: 
+* **Input**: $(x_1, x_2, ..., x_n)$ un vecteur de dimension $n$
+* **Weights:** $(w_1, w_2, ..., w_n)$ un vecteur de dimension $n$
+* **Bias:** $b$, un scalaire
+* **Output:**
 
 $y = \begin{cases}
-1,  & \text{if $\sum_{i=1}^n x_i.w_i + b > $ threshold} \\
+1,  & \text{if $\sum_{i=1}^n x_i.w_i + b > $ seuil} \\
 0, & {otherwise}
 \end{cases}$
 
@@ -64,7 +66,7 @@ $y = \begin{cases}
 knitr::include_graphics("slides/MLP_forward_1.jpeg")
 ```
 
-```{r,MLP_training_with_dataset,out.width='450px', fig.align='center', echo=FALSE}
+```{r,MLP_training_with_dataset,out.width='600px', fig.align='center', echo=FALSE}
 knitr::include_graphics("slides/mlp_training.png")
 ```
 
@@ -75,7 +77,7 @@ knitr::include_graphics("slides/mlp_training.png")
 knitr::include_graphics("slides/MLP_forward_1.jpeg")
 ```
 
-* $x$ vector representing one input data sample, $f$ activation function
+* $x$ vecteur représentant une observation, $f$ fonction d'activation
 * $a^{(1)} = x$
 * $z^{(2)} = a^{(1)}.W^{(1)} + b^{(1)} = x.W^{(1)} + b^{(1)}$
 * $a^{(2)} = f(z^{(2)})$
@@ -87,24 +89,36 @@ knitr::include_graphics("slides/MLP_forward_1.jpeg")
 
 # Edge Computing
 
+<div class="gray">
 > L'edge computing est une méthode d'optimisation employée dans le cloud computing qui consiste à traiter les données à la périphérie du réseau, près de la source des données -- Wikipedia
+</div>
 
 # VPU {.build}
 
+<div class="gray">
 - dédié
 - moins de fonctionnalités
 - moins énergivore
+</div>
 
 ## {data-background="slides/Screenshot_2018-10-24 Intel® Movidius™ Neural Compute Stick.png" data-background-size=contain}
 
 <div class="notes">
 Movidius was co-founded in Dublin in 2005 by Sean Mitchell and David Moloney.[1][2] Between 2006 and 2016, it raised nearly $90 million in capital funding.[3] In May, 2013 the company appointed Remi El-Ouazzane as CEO.[4] In January, 2016 the company announced a partnership with Google.[5] Movidius has been active in the Google Project Tango project.[6] Movidius announced a planned acquisition by Intel in September 2016.[7]
+
+Tensorflow et Caffe
 </div>
 
 
 ## {data-background="slides/Screenshot_2018-10-24 Edge TPU Devices.png" data-background-size=contain}
 
 Google AIY
+
+<div class="notes">
+MobileNet V2 at 100+ fps
+
+Tensorflow lite
+</div>
 
 # Dans le Neural Compute Stick
 
@@ -118,7 +132,9 @@ Google AIY
 
 # 1W vs. 180W {.build}
 
+<div class="gray">
 2.5x5cm vs. 10x25cm
+</div>
 
 <div class="notes">
 - http://juxi.net/workshop/deep-learning-rss-2017/papers/Pena.pdf
@@ -127,15 +143,19 @@ Google AIY
 
 # Démarche {.build}
 
+<div class="gray">
 - train ton modèle
 - profile/tune/compile ton modèle sur PC
 - prototype sur système embarqué
+</div>
 
 # Exemple {data-background=slides/adult-ai-artificial-intelligence-1020325.jpg data-background-size=cover class=blue}
 
 # Alphashifumi {data-background=slides/alphashifumi_v1.jpg data-background-size=contain}
 
 ## V2 {data-background=slides/alphashifumi_v2.jpg data-background-size=contain}
+
+## V2 {data-background=slides/archi_alphashifumi.png data-background-size=contain}
 
 ## V800 {data-background=slides/T800.jpg data-background-size=contain}
 
@@ -161,7 +181,7 @@ knitr::include_graphics("slides/paper.svg")
 library(reticulate)
 use_virtualenv('~/.virtualenvs/r-tensorflow-py3', required = TRUE)
 ```
-## Chargement des librairies:
+## Chargement des librairies
 
 ```{r,load_libraries,results='hide',message=FALSE}
 library(keras)
@@ -169,8 +189,8 @@ library(tensorflow)
 ```
 
 ```{r,settings,results='hide',message=FALSE,echo=FALSE}
-img_width <- 224
-img_height <- 224
+img_width <- 128
+img_height <- 128
 train_data_dir <-  "/home/geraud/data/alphashifumi/train"
 validation_data_dir <-  "/home/geraud/data/alphashifumi/test"
 nb_classes <- 5
@@ -253,7 +273,7 @@ save_model_hdf5(model, 'target/models/slide.hdf5')
 ## Performance
 
 ```{r,train_history}
-plot(history, type = 'l')
+plot(history)
 ```
 
 ## Freeze du modèle
@@ -269,10 +289,15 @@ io_names <- freeze(model)
   - transformation des variables en constantes
   - modifier la précision (par ex.: float sur 32bit vers 16bit)
 
-# Compilation
+# Toolkit
 
+<div class="gray">
+- mvNCCheck
+- mvNCProfile
+- mvNCCompile
+</div>
 
-## Toolkit 
+## Compilation
 
 On compile le modèle dans un format pris en charge par le NCS.
 Avec :
@@ -293,7 +318,7 @@ mvNCCompile target/models/keras_to_tf.pb -o target/ncs/ncs.graph \
 
 #$
 ```
-```{bash,ncscompile,echo=FALSE}
+```{bash,ncscompile,results='hide',echo=FALSE}
 PYTHONPATH="${PYTHONPATH}:/opt/movidius/caffe/python"
 source /opt/movidius/virtualenv-python/bin/activate
 mkdir -p $PWD/target/ncs
@@ -302,11 +327,29 @@ mvNCCompile target/models/keras_to_tf.pb -o target/ncs/ncs.graph \
 	       -in $INPUT_NAME \
  	       -on $OUTPUT_NAME \
          -is 128 128
+
+mvNCProfile target/models/keras_to_tf.pb \
+	       -in $INPUT_NAME \
+ 	       -on $OUTPUT_NAME \
+         -is 128 128
+
+#$
+```
+## Profiling
+
+
+```{r,ncsprofile_clean_cmd,eval=FALSE}
+mvNCProfile target/models/keras_to_tf.pb \
+	       -in $INPUT_NAME \
+ 	       -on $OUTPUT_NAME
+
 #$
 ```
 
+[Example de rapport](output_report.html)
 
-# Test avec le NCS
+
+# Utilisation du SDK
 
 ## Liste des devices
 
@@ -365,7 +408,7 @@ On charge une image :
 knitr::include_graphics("data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233b68540d-1.jpg")
 ```
 
-```{python,first_inference,eval=py$has_device}
+```{python,first_inference,results='hide',eval=py$has_device}
 from scipy import misc
 import numpy
 
@@ -373,7 +416,7 @@ tensor = misc.imread('data/alphashifumi/test/paper/26475c05-9d1e-11e7-abeb-b1233
 tensor = tensor.astype(numpy.float32)
 ```
 
-```{python,np_zeros,echo=FALSE,eval=py$has_device}
+```{python,np_zeros,echo=FALSE,results='hide',eval=FALSE}
 import numpy as np
 tensor = np.zeros([128,128,1], numpy.float32)
 ```
@@ -405,7 +448,7 @@ device.destroy()
 
 # Benchmark
 
-## CPU vs. VPU
+## CPU vs. VPU {.build}
 
 CPU :
 ```{r,benchmark_r,echo=FALSE,cache=TRUE}
@@ -460,7 +503,17 @@ VPU :
 summary(py$times, digits = 3)
 ```
 
-# Transfer Learning
+VPU sur RPI :
+```{r,summary_vpu_rpi,echo=FALSE}
+vpu_rpi_data <- read.csv('results_pi.csv', header = FALSE)
+summary(vpu_rpi_data$V1, digits = 3)
+```
+
+# Transfer Learning {.build}
+
+```{r,Boromir_transfer_learning,out.width='10%', fig.align=center', fig.cap='Boromir transfer learning', echo=FALSE}
+knitr::include_graphics("slides/boromir_transfer_learning.jpg")
+```
 
 <div class="notes">
 </div>
@@ -469,37 +522,36 @@ summary(py$times, digits = 3)
 
 ---
 
-```{r,inception_loading}
+```{r,inception_preparation,echo=FALSE}
+library(reticulate)
+use_virtualenv('~/.virtualenvs/r-tensorflow-py3', required = TRUE)
+library(keras)
+library(tensorflow)
+
+img_width <- 128
+img_height <- 128
+train_data_dir <-  "/home/geraud/data/alphashifumi/train"
+validation_data_dir <-  "/home/geraud/data/alphashifumi/test"
+nb_classes <- 5
+nb_train_samples <- 1300 
+nb_validation_samples <- 300
+batch_size <- 64
+epochs <- 50
+model_output_dir <- './target/models/'
+augmented_data <- './target/generated/'
+
+source('freeze.R')
+source('prepare_data.R')
+
 k_clear_session()
 k_set_learning_phase(1)
-##base_model <- application_vgg16(weight = 'imagenet',
-##                                include_top = FALSE,
-##                                input_shape = c(img_width, img_height, 3))
+```
 
-base_model <- application_mobilenet(weight = 'imagenet',
-                                    include_top = FALSE,
-                                    input_shape = c(img_width, img_height, 3),
-                                    pooling = 'avg')
-
-
-##base_model <- application_inception_v3(weight = 'imagenet',
-##                                       include_top = FALSE,
-##                                       input_shape = c(img_width, img_height, 3),
-##                                       pooling = 'avg')
-##
-
-##base_model <- application_densenet121(weight = 'imagenet',
-##                                   include_top = FALSE,
-##                                   input_shape = c(img_width, img_height, 3),
-##                                   pooling = 'avg')
-##
-
-##base_model <- application_inception_resnet_v2(weight = 'imagenet',
-##                                              include_top = FALSE,
-##                                              input_shape = c(img_width, img_height, 3))
-##
-
-
+```{r,inception_loading}
+base_model <- application_inception_v3(weight = 'imagenet',
+                                       include_top = FALSE,
+                                       input_shape = c(img_width, img_height, 3),
+                                       pooling = 'avg')
 ```
 
 On ajoute nos couches denses :
@@ -523,13 +575,12 @@ model <- keras_model(inputs = base_model$input, outputs = predictions)
 On _freeze_ toutes les couches, pas besoin de les réentrainer :
 
 ```{r,freeze_layers}
-for (layer in base_model$layers)
-  layer$trainable <- FALSE
+freeze_weights(base_model)
 ```
 
-## Performance
+## ...
 
-```{r,train_model_transfer,echo=FALSE}
+```{r,train_model_transfer,echo=FALSE,eval=FALSE}
 generators <- get_generators('rgb')
 train_generator <- generators[[1]]
 validation_generator <- generators[[2]]
@@ -543,14 +594,11 @@ history <- model %>% fit_generator(train_generator,
                                    steps_per_epoch = nb_train_samples / batch_size,
                                    validation_steps = nb_validation_samples / batch_size,
                                    epochs = 10)
+
 plot(history)
 
 io_names <- freeze(model, model_output_file = 'transfer_to_tf')
 set_io_names_env(io_names$input, io_names$output)
-```
-
-```{R}
-summary(model)
 ```
 
 ```{bash,ncscompile_model_transfer,echo=FALSE}
@@ -566,13 +614,33 @@ mvNCCompile target/models/transfer_to_tf.pb -o target/ncs/ncs-transfer.graph \
 
 ```
 
-## {data-background=slides/422.jpeg data-background-size=contain}
+# Conclusion {.build}
 
+<div class="gray">
+- Neural Compute Stick
+- Inférence de réseaux
+- Prototypage
+- Performant et peu énergivore
+- SDK et API en évolution
+</div>
+
+# Merci { }
+
+```{r,image_zenika,out.width='10%', fig.align='right', fig.cap='Exemple shifumi', echo=FALSE}
+knitr::include_graphics("slides/LOGO rond ROUGE + blanc_horizontal.png")
+```
+
+<div class="gray smaller">
+Géraud Dugé de Bernonville / Consultant Big Data - Zenika Bordeaux
+- geraud.dugedebernonville@zenika.com
+- @geraudster
+</div>
 
 # Liens
 
 - https://movidius.github.io/ncsdk/
 - https://software.intel.com/en-us/ai-academy/students/kits/ai-on-the-edge-vision-movidius
+- https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html
 
 # Credits
 

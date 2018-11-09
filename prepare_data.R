@@ -10,11 +10,11 @@ get_generators <- function(color_mode, input_preprocessor = NULL) {
         height_shift_range = 0.3,
         rotation_range = 30,
         data_format = 'channels_last',
-        preprocessing_function=input_preprocessor)
+        preprocessing_function = input_preprocessor)
 
     validation_datagen <- image_data_generator(
         data_format = 'channels_last',
-        preprocessing_function=input_preprocessor
+        preprocessing_function = input_preprocessor
     )
 
     train_generator <- flow_images_from_directory(
