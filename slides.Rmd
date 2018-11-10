@@ -1,8 +1,8 @@
 ---
 title: "Embarquez vos réseaux de neurones"
-subtitle: "À la découverte du Edge Computing avec le Neural Stick Computing"
+subtitle: "À la découverte du Edge Computing avec le Neural Compute Stick"
 author: "Géraud Dugé de Bernonville"
-date: "26 octobre 2018"
+date: "9 Novembre 2018"
 output:
   ioslides_presentation:
     widescreen: true
@@ -328,10 +328,10 @@ mvNCCompile target/models/keras_to_tf.pb -o target/ncs/ncs.graph \
  	       -on $OUTPUT_NAME \
          -is 128 128
 
-mvNCProfile target/models/keras_to_tf.pb \
-	       -in $INPUT_NAME \
- 	       -on $OUTPUT_NAME \
-         -is 128 128
+#mvNCProfile target/models/keras_to_tf.pb \
+#	       -in $INPUT_NAME \
+# 	       -on $OUTPUT_NAME \
+#         -is 128 128
 
 #$
 ```
@@ -511,7 +511,7 @@ summary(vpu_rpi_data$V1, digits = 3)
 
 # Transfer Learning {.build}
 
-```{r,Boromir_transfer_learning,out.width='10%', fig.align=center', fig.cap='Boromir transfer learning', echo=FALSE}
+```{r,Boromir_transfer_learning,out.width='50%', fig.align='center', echo=FALSE}
 knitr::include_graphics("slides/boromir_transfer_learning.jpg")
 ```
 
@@ -601,7 +601,7 @@ io_names <- freeze(model, model_output_file = 'transfer_to_tf')
 set_io_names_env(io_names$input, io_names$output)
 ```
 
-```{bash,ncscompile_model_transfer,echo=FALSE}
+```{bash,ncscompile_model_transfer,echo=FALSE,eval=FALSE}
 PYTHONPATH="${PYTHONPATH}:/opt/movidius/caffe/python"
 source /opt/movidius/virtualenv-python/bin/activate
 mkdir -p $PWD/target/ncs
@@ -614,6 +614,12 @@ mvNCCompile target/models/transfer_to_tf.pb -o target/ncs/ncs-transfer.graph \
 
 ```
 
+## Tout n'est pas perdu {.build}
+
+* Évolution du SDK
+* NCAppZoo
+* Communauté Movidius
+
 # Conclusion {.build}
 
 <div class="gray">
@@ -624,20 +630,23 @@ mvNCCompile target/models/transfer_to_tf.pb -o target/ncs/ncs-transfer.graph \
 - SDK et API en évolution
 </div>
 
-# Merci { }
+# Merci {.build}
 
-```{r,image_zenika,out.width='10%', fig.align='right', fig.cap='Exemple shifumi', echo=FALSE}
+```{r,image_zenika,out.width='20%', fig.align='right', echo=FALSE}
 knitr::include_graphics("slides/LOGO rond ROUGE + blanc_horizontal.png")
 ```
 
 <div class="gray smaller">
 Géraud Dugé de Bernonville / Consultant Big Data - Zenika Bordeaux
-- geraud.dugedebernonville@zenika.com
-- @geraudster
+
+* geraud.dugedebernonville@zenika.com
+* @geraudster
+
 </div>
 
 # Liens
 
+- Code source de cette présentation : https://github.com/geraudster/vpu-shifumi-demo
 - https://movidius.github.io/ncsdk/
 - https://software.intel.com/en-us/ai-academy/students/kits/ai-on-the-edge-vision-movidius
 - https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html
